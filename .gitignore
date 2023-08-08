@@ -1,2 +1,5 @@
 inbox/
 invoices/
+old/
+sca_invoices/*.pdf
+sca_invoices/*.txt
