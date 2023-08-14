@@ -1,8 +1,9 @@
 #!/usr/bin/ruby
+require 'pry'
 class Invoice
 	# lineitmes will be an array of LineItem
 	# the rest will probably be text fields for now. no dollar signs in front of the prices.
-	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total
+	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total, :trackingnumbers, :ordernumber, :ponumber
 	#TODO add initializer where we pass the text filename to it.
 end
 class LineItem
@@ -21,6 +22,7 @@ all_line_items_text = []
 skip_next_lines = 0
 
 thisinvoice = Invoice.new
+thisinvoice.trackingnumbers = ""
 f.each_line do |line|
 	if skip_next_lines > 0
 		puts "skipped line"
@@ -28,23 +30,39 @@ f.each_line do |line|
 		next
 	end
 	case state
+	when :order_po
+		if /^(?<ordernumber>SO\d{6,})\s+(?<ponumber>\w+)\s+/ =~ line
+			thisinvoice.ordernumber = ordernumber
+			thisinvoice.ponumber = ponumber
+		else
+			puts "error on PO# line, doesn't match regex"
+		end
+		state = :header # we arent done with the header, there's still tracking numbers to go yet
 	when :header
 		if /Invoice:(?<invnum>INV\d{8,})$/ =~ line
 			thisinvoice.invnum = invnum
 		elsif /Date:\s*(?<invdate>\d{1,2}\/\d{1,2}\/\d{4})$/ =~ line
 			thisinvoice.invdate = invdate
+		elsif /^Order #\s+PO #\s+/ =~ line
+			state = :order_po
+		elsif /^\s+Tracking Number\(s\)\s+$/ =~ line
+			state = :trackingnumbers
+		elsif /\s(?<invnum>INV\d{8,})\s+(?<duedate>\d+\/\d+\/\d+)\s+\$(?<total>\d+\.\d+)$/ =~ line
+			thisinvoice.invnum = invnum
+			thisinvoice.duedate = duedate
+			thisinvoice.total = total
+		end
+	when :trackingnumbers
+		if /^\s*$/ =~ line
 			state = :unknown
+		else
+			thisinvoice.trackingnumbers += line.strip
 		end
 	when :unknown
 		if /^Ordered[[:space:]]+Shipped$/ =~ line
 			puts "Found ordered-shipped line"
 			state = :lineitems
 			skip_next_lines = 1 # ordered-shipped line is followed by one blank line, which would otherwise signify the end of the line items
-		elsif /[[:space:]](?<invnum>INV\d{8,})[[:space:]]+(?<duedate>\d+\/\d+\/\d+)[[:space:]]+\$(?<dollars>\d+)\.(?<cents>\d+)$/ =~ line
-			puts "invnum = #{invnum}, duedate = #{duedate}, dollars = #{dollars}, cents = #{cents}"
-			thisinvoice.invnum = invnum
-			thisinvoice.duedate = duedate
-			thisinvoice.total = "#{dollars}.#{cents}"
 		end
 	when :lineitems
 		if /^[[:space:]]*\d+ of \d+$/ =~ line
@@ -59,7 +77,6 @@ f.each_line do |line|
 		end
 	end
 end
-
 
 # Here, we have the line items in an array of lines. Let's split it into per-part entries
 all_lineitems = []
@@ -78,6 +95,5 @@ all_line_items_text.each do |line|
 		this_lineitem.details << line.strip #remove leading and trailing whitespace
 	end
 end
-puts 'line items:'
-puts all_line_items_text
+binding.pry
 f.close
