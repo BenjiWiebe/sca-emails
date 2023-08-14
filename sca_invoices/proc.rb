@@ -3,7 +3,7 @@ require 'pry'
 class Invoice
 	# lineitmes will be an array of LineItem
 	# the rest will probably be text fields for now. no dollar signs in front of the prices.
-	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total, :trackingnumbers, :ordernumber, :ponumber
+	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total, :trackingnumbers, :ordernumber, :ponumber, :freight, :subtotal
 	#TODO add initializer where we pass the text filename to it.
 end
 class LineItem
@@ -63,6 +63,10 @@ f.each_line do |line|
 			puts "Found ordered-shipped line"
 			state = :lineitems
 			skip_next_lines = 1 # ordered-shipped line is followed by one blank line, which would otherwise signify the end of the line items
+		elsif /^\s+Subtotal\s+\$(?<subtotal>\d+\.\d+)$/ =~ line
+			thisinvoice.subtotal = subtotal
+		elsif /^\s+Freight Total\s+\$(?<freight>\d+\.\d+)$/ =~ line
+			thisinvoice.freight = freight
 		end
 	when :lineitems
 		if /^[[:space:]]*\d+ of \d+$/ =~ line
