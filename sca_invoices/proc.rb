@@ -5,99 +5,124 @@ class Invoice
 	# the rest will probably be text fields for now. no dollar signs in front of the prices.
 	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total, :trackingnumbers, :ordernumber, :ponumber, :freight, :subtotal
 	#TODO add initializer where we pass the text filename to it.
-end
+	def initialize(filename)
+		@lineitems = []
+		f=File.open(filename)
+		state = :header
+		skip_next_lines = 0
+		
+		@trackingnumbers = ""
+		grouped_lines = []
+		f.each_line do |line|
+			if skip_next_lines > 0
+				puts "skipped line"
+				skip_next_lines =- 1
+				next
+			end
+			case state
+			when :order_po
+				if /^(?<ordernumber>SO\d{6,})\s+(?<ponumber>\w+)\s+/ =~ line
+					@ordernumber = ordernumber
+					@ponumber = ponumber
+				else
+					puts "error on PO# line, doesn't match regex"
+				end
+				state = :header # we arent done with the header, there's still tracking numbers to go yet
+			when :header
+				if /Invoice:(?<invnum>INV\d{8,})$/ =~ line
+					@invnum = invnum
+				elsif /Date:\s*(?<invdate>\d{1,2}\/\d{1,2}\/\d{4})$/ =~ line
+					@invdate = invdate
+				elsif /^Order #\s+PO #\s+/ =~ line
+					state = :order_po
+				elsif /^\s+Tracking Number\(s\)\s+$/ =~ line
+					state = :trackingnumbers
+				elsif /\s(?<invnum>INV\d{8,})\s+(?<duedate>\d+\/\d+\/\d+)\s+\$(?<total>\d+\.\d+)$/ =~ line
+					@invnum = invnum
+					@duedate = duedate
+					@total = total
+				end
+			when :trackingnumbers
+				if /^\s*$/ =~ line
+					state = :unknown
+				else
+					@trackingnumbers += line.strip
+				end
+			when :unknown
+				if /^Ordered[[:space:]]+Shipped$/ =~ line
+					puts "Found ordered-shipped line"
+					state = :lineitems
+					skip_next_lines = 1 # ordered-shipped line is followed by one blank line, which would otherwise signify the end of the line items
+				elsif /^\s+Subtotal\s+\$(?<subtotal>\d+\.\d+)$/ =~ line
+					@subtotal = subtotal
+				elsif /^\s+Freight Total\s+\$(?<freight>\d+\.\d+)$/ =~ line
+					@freight = freight
+				end
+			when :lineitems
+				if /^[[:space:]]*\d+ of \d+$/ =~ line
+					puts "found 'n of n' line"
+					state = :unknown
+				elsif /^[[:space:]]*$/ =~ line
+					puts "found blank line"
+					state = :unknown
+				else
+					puts "found line item"
+					# THIS SHOULD WORK EXCEPT IF TWO INFO LINES ARE IN A ROW
+					# The below regex is copied from LineItem.initialize minus the named fields. Please keep them in sync.
+					if /^\s+\d+\s+\d+\s+[ \w[[:space:]]]{3,}\s+\$\d+\.\d+\s+\$\d+\.\d+\s+\$\d+\.\d+\s*$/ =~ line
+						if grouped_lines.count > 0
+							@lineitems << LineItem.new(grouped_lines)
+							grouped_lines = []
+						end
+					end
+					grouped_lines << line
+				end
+			end # case state
+		end # f.each_line
+		if grouped_lines.count > 0
+			@lineitems << LineItem.new(grouped_lines)
+		end
+		f.close
+		@trackingnumbers = @trackingnumbers.split
+	end # def initialize
+end	# class Invoice
+
 class LineItem
 	# qtyordered, qtyshipped shall be integers
 	# partno, description, msrp, cost, totalamount shall be text fields. no dollar signs in front of the prices.
 	attr_accessor :qtyordered, :qtyshipped, :partno, :description, :msrp, :cost, :totalamount, :details
-	def initialize
+	def initialize(group_of_lines)
 		@details = []
-	end
-end
-
-
-f=File.open('Invoice_INV70535195.txt')
-state = :header
-all_line_items_text = []
-skip_next_lines = 0
-
-thisinvoice = Invoice.new
-thisinvoice.trackingnumbers = ""
-f.each_line do |line|
-	if skip_next_lines > 0
-		puts "skipped line"
-		skip_next_lines =- 1
-		next
-	end
-	case state
-	when :order_po
-		if /^(?<ordernumber>SO\d{6,})\s+(?<ponumber>\w+)\s+/ =~ line
-			thisinvoice.ordernumber = ordernumber
-			thisinvoice.ponumber = ponumber
-		else
-			puts "error on PO# line, doesn't match regex"
+		puts "group of lines count = #{group_of_lines.count}"
+		group_of_lines.each do |line|
+			if /^\s+(?<ordered>\d+)\s+(?<shipped>\d+)\s+(?<partno>[ \w[[:space:]]]{3,})\s+\$(?<msrp>\d+\.\d+)\s+\$(?<cost>\d+\.\d+)\s+\$(?<total>\d+\.\d+)\s*$/ =~ line # This regex is copied to Invoice.initialize. Please keep them in sync.
+				@qtyordered = ordered
+				@qtyshipped = shipped
+				@partno = partno.strip # remove leading and trailing whitespace
+				@msrp = msrp
+				@cost = cost
+				@totalamount = total
+			else
+				@details << line.strip #remove leading and trailing whitespace
+			end
+		end # 
+	end # def initialize
+	def valid?
+		dollar_figure = /^\d+\.\d{0,2}$/
+		problems = false
+		if @qtyordered <= 0
+			problems = true
 		end
-		state = :header # we arent done with the header, there's still tracking numbers to go yet
-	when :header
-		if /Invoice:(?<invnum>INV\d{8,})$/ =~ line
-			thisinvoice.invnum = invnum
-		elsif /Date:\s*(?<invdate>\d{1,2}\/\d{1,2}\/\d{4})$/ =~ line
-			thisinvoice.invdate = invdate
-		elsif /^Order #\s+PO #\s+/ =~ line
-			state = :order_po
-		elsif /^\s+Tracking Number\(s\)\s+$/ =~ line
-			state = :trackingnumbers
-		elsif /\s(?<invnum>INV\d{8,})\s+(?<duedate>\d+\/\d+\/\d+)\s+\$(?<total>\d+\.\d+)$/ =~ line
-			thisinvoice.invnum = invnum
-			thisinvoice.duedate = duedate
-			thisinvoice.total = total
+		unless dollar_figure =~ @cost
 		end
-	when :trackingnumbers
-		if /^\s*$/ =~ line
-			state = :unknown
-		else
-			thisinvoice.trackingnumbers += line.strip
+		unless dollar_figure =~ @msrp
 		end
-	when :unknown
-		if /^Ordered[[:space:]]+Shipped$/ =~ line
-			puts "Found ordered-shipped line"
-			state = :lineitems
-			skip_next_lines = 1 # ordered-shipped line is followed by one blank line, which would otherwise signify the end of the line items
-		elsif /^\s+Subtotal\s+\$(?<subtotal>\d+\.\d+)$/ =~ line
-			thisinvoice.subtotal = subtotal
-		elsif /^\s+Freight Total\s+\$(?<freight>\d+\.\d+)$/ =~ line
-			thisinvoice.freight = freight
-		end
-	when :lineitems
-		if /^[[:space:]]*\d+ of \d+$/ =~ line
-			puts "found 'n of n' line"
-			state = :unknown
-		elsif /^[[:space:]]*$/ =~ line
-			puts "found blank line"
-			state = :unknown
-		else
-			puts "found line item"
-			all_line_items_text << line
+		unless dollar_figure =~ @totalamount
 		end
 	end
-end
+end # class LineItem
 
-# Here, we have the line items in an array of lines. Let's split it into per-part entries
-all_lineitems = []
-this_lineitem = nil
-all_line_items_text.each do |line|
-	if /^\s+(?<ordered>\d+)\s+(?<shipped>\d+)\s+(?<partno>[ \w[[:space:]]]{3,})\s+\$(?<msrp>\d+\.\d+)\s+\$(?<cost>\d+\.\d+)\s+\$(?<total>\d+\.\d+)\s*$/ =~ line
-		this_lineitem = LineItem.new
-		this_lineitem.qtyordered = ordered
-		this_lineitem.qtyshipped = shipped
-		this_lineitem.partno = partno.strip # remove leading and trailing whitespace
-		this_lineitem.msrp = msrp
-		this_lineitem.cost = cost
-		this_lineitem.totalamount = total
-		all_lineitems << this_lineitem
-	else
-		this_lineitem.details << line.strip #remove leading and trailing whitespace
-	end
-end
+inv=Invoice.new('Invoice_INV70535195.txt')
 binding.pry
-f.close
+
+
