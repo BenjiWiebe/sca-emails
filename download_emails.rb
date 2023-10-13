@@ -1,13 +1,10 @@
 #!/usr/bin/ruby
 require 'net/pop'
 
-hostname='mail.jasonwiebedairy.com'
-account='sca_process@benjiwiebe.com'
-password='[_QQ[\'4&j;+2tt;?T}r2'
-
-pop = Net::POP3.new(hostname)
+require_relative 'email_secrets.rb'
+pop = Net::POP3.new(EmailSecrets::HOSTNAME)
 pop.enable_ssl
-pop.start(account, password)
+pop.start(EmailSecrets::ACCOUNT, EmailSecrets::PASSWORD)
 
 if pop.mails.empty?
 	puts 'No mail.'

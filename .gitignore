@@ -3,3 +3,4 @@ invoices/
 old/
 sca_invoices/*.pdf
 sca_invoices/*.txt
+email_secrets.rb
