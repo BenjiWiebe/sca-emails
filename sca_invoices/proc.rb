@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 require 'pry'
 class Invoice
-	# lineitmes will be an array of LineItem
+	# lineitems will be an array of LineItem
 	# the rest will probably be text fields for now. no dollar signs in front of the prices.
 	attr_accessor :invnum, :invdate, :duedate, :lineitems, :total, :trackingnumbers, :ordernumber, :ponumber, :freight, :subtotal
 	#TODO add initializer where we pass the text filename to it.
@@ -85,6 +85,32 @@ class Invoice
 		f.close
 		@trackingnumbers = @trackingnumbers.split
 	end # def initialize
+
+	def valid?
+		# TODO check validity of all invoice fields, not just the lineitems!
+		lineitems_invalid = @lineitems.any? {|i| !i.valid? }
+		dollar_figure = /^\d+\.\d{0,2}$/
+		problems = false
+		unless dollar_figure =~ @freight
+			problems = true
+		end
+		unless dollar_figure =~ @subtotal
+			problems = true
+		end
+		unless dollar_figure =~ @total
+			problems = true
+		end
+		unless /^SO\d+$/ =~ @ordernumber
+			problems = true
+		end
+		unless /^INV\d+$/ =~ @invnum
+			problems = true
+		end
+		if lineitems_invalid
+			problems = true
+		end
+		return !problems
+	end # def valid?
 end	# class Invoice
 
 class LineItem
@@ -108,21 +134,29 @@ class LineItem
 		end # 
 	end # def initialize
 	def valid?
+		# this regex matches numbers with two decimal places, like '20.55' or '5.10'
 		dollar_figure = /^\d+\.\d{0,2}$/
 		problems = false
-		if @qtyordered <= 0
+		if @qtyordered.to_i <= 0 # qty shipped or back ordered might be 0, but ordered should be >0
 			problems = true
 		end
 		unless dollar_figure =~ @cost
+			problems = true
 		end
 		unless dollar_figure =~ @msrp
+			problems = true
 		end
 		unless dollar_figure =~ @totalamount
+			problems = true
 		end
+		return !problems
 	end
 end # class LineItem
 
 inv=Invoice.new('Invoice_INV70535195.txt')
+unless inv.valid?
+	puts "invoice is questionable, maybe something went wrong!"
+end
 binding.pry
 
 
