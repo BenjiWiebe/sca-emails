@@ -1,6 +1,8 @@
 inbox/
 invoices/
 old/
-sca_invoices/*.pdf
-sca_invoices/*.txt
+sca_invoices/
+sca_invoices/
+old_emails/
+old_invoices/
 email_secrets.rb

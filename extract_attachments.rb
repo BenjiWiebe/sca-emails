@@ -19,8 +19,8 @@ def write_attachments(prefix, mail)
 	return num_wrote
 end
 
-if ! Dir.exist?('old')
-	FileUtils.mkdir('old')
+if ! Dir.exist?('old_emails')
+	FileUtils.mkdir('old_emails')
 end
 
 if ! Dir.exist?('sca_invoices')
@@ -34,7 +34,7 @@ Dir.foreach('inbox/') do |f|
 	num_wrote = write_attachments('sca_invoices/', mail)
 	if num_wrote == mail.attachments.count
 		puts "Deleting email #{f}"
-		FileUtils.move("inbox/#{f}", "old/")
+		FileUtils.move("inbox/#{f}", "old_emails/")
 	else
 		puts "Something went wrong - wrote #{num_wrote} attachments, email had #{mail.attachments.count} attachments"
 		exit 1
