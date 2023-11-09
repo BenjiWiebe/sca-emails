@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS Invoice(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	invnum TEXT,
+	invnum TEXT UNIQUE NOT NULL,
 	invdate TEXT,
 	duedate TEXT,
 	total TEXT,
