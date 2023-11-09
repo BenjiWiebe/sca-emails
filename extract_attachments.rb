@@ -9,11 +9,12 @@ def write_attachments(prefix, mail)
 	num_wrote = 0
 	mail.attachments.each do |at|
 		if File.exists?(prefix + at.filename)
-			puts "Error - file #{at.filename} exists already! Skipping."
-			next
+			puts "Warning - file #{at.filename} exists already!"
 		end
 		File.write(prefix + at.filename, at.body.decoded)
 		puts "Wrote attachment #{at.filename}"
+		system('pdftotext', '-layout', prefix + at.filename)
+		puts "Converted attachment #{at.filename} to text"
 		num_wrote += 1
 	end
 	return num_wrote
@@ -27,8 +28,15 @@ if ! Dir.exist?('sca_invoices')
 	FileUtils.mkdir('sca_invoices')
 end
 
+begin
+	system('pdftotext', '-help', [:out, :err] => File::NULL)
+rescue
+	puts "pdftotext not installed, exiting."
+	exit 1
+end
+
 Dir.foreach('inbox/') do |f|
-	next if File.directory? f #needed to skip . and ..
+	next if File.directory? f # skip directories - needed to skip . and ..
 	puts "reading email #{f}"
 	mail = Mail.read("inbox/#{f}")
 	num_wrote = write_attachments('sca_invoices/', mail)
@@ -40,3 +48,4 @@ Dir.foreach('inbox/') do |f|
 		exit 1
 	end
 end
+puts "Done"
