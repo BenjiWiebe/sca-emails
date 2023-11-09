@@ -1,7 +1,7 @@
 class LineItem
 	# qtyordered, qtyshipped shall be integers
 	# partno, description, msrp, cost, totalamount shall be text fields. no dollar signs in front of the prices.
-	attr_accessor :qtyordered, :qtyshipped, :partno, :description, :msrp, :cost, :totalamount, :details
+	attr_accessor :qtyordered, :qtyshipped, :partno, :msrp, :cost, :totalamount, :details
 	def initialize(group_of_lines)
 		@details = []
 		#puts "group of lines count = #{group_of_lines.count}"

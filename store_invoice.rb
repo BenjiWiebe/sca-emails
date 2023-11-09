@@ -24,7 +24,7 @@ puts "Queued #{invs_to_write.count} invoices to write to DB"
 begin
 	db = SQLite3::Database.open 'inv.db'
 	stm = db.prepare 'INSERT INTO Invoice(invnum,invdate,duedate,total,trackingnumbers,ordernumber,ponumber,freight,subtotal) values (?,?,?,?,?,?,?,?,?)'
-	stm2 = db.prepare 'INSERT INTO LineItems(invid,qtyordered,qtyshipped,partno,description,msrp,cost,totalamount,details) values (?,?,?,?,?,?,?,?,?)'
+	stm2 = db.prepare 'INSERT INTO LineItems(invid,qtyordered,qtyshipped,partno,msrp,cost,totalamount,details) values (?,?,?,?,?,?,?,?)'
 
 	db.transaction
 	# start looping over inv's
@@ -36,7 +36,7 @@ begin
 
 		inv.lineitems.each do |lineitem|
 		# loop over lineitems
-			stm2.execute inv_rowid, lineitem.qtyordered, lineitem.qtyshipped, lineitem.partno, lineitem.description,
+			stm2.execute inv_rowid, lineitem.qtyordered, lineitem.qtyshipped, lineitem.partno,
 				lineitem.msrp, lineitem.cost, lineitem.totalamount, lineitem.details.join("\n")
 			stm2.reset!
 		# end loop over lineitems
@@ -63,6 +63,3 @@ ensure
 	stm2.close if stm2
 	db.close if db
 end
-
-
-binding.pry
