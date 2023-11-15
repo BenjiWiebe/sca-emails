@@ -6,3 +6,4 @@ sca_invoices/
 old_emails/
 old_invoices/
 email_secrets.rb
+inv.db

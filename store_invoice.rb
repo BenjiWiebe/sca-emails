@@ -4,6 +4,7 @@ require 'sqlite3'
 require_relative 'lib/invoice.rb'
 require_relative 'lib/lineitem.rb'
 
+dbfilename = 'inv.db'
 inv_files = 'sca_invoices/Invoice_*.txt'
 invs_to_write = []
 files_to_move = [] #move these to an archive directory if the DB commit succeeds
@@ -22,7 +23,7 @@ end
 puts "Queued #{invs_to_write.count} invoices to write to DB"
 
 begin
-	db = SQLite3::Database.open 'inv.db'
+	db = SQLite3::Database.open dbfilename
 	stm = db.prepare 'INSERT INTO Invoice(invnum,invdate,duedate,total,trackingnumbers,ordernumber,ponumber,freight,subtotal) values (?,?,?,?,?,?,?,?,?)'
 	stm2 = db.prepare 'INSERT INTO LineItems(invid,qtyordered,qtyshipped,partno,msrp,cost,totalamount,details) values (?,?,?,?,?,?,?,?)'
 
